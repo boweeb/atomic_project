@@ -23,7 +23,7 @@
 # VARS
 # ##################################################################################################################################
 # DEBUG: (Exec or echo commands)
-DEBUG=false
+DEBUG=true
 
 # MANUAL SETTINGS:
 HOST_PREFIX="atomic"
@@ -39,7 +39,7 @@ POOL_DIR="/var/lib/libvirt/images"
 VM_FORMAT="qcow2"
 MAC_MASTER="52:54:00:cc:c8:0e"
 MAC_NODES=("52:54:00:b4:26:71" "52:54:00:a4:e7:8d" "52:54:00:56:d6:69" "52:54:00:2b:61:0c")
-SLEEP_TIME=3
+SLEEP_TIME=0.5
 
 # CALCULATED SETTINGS:
 SOURCE_IMG="${PWD}/${SOURCE_IMG_NAME}"
@@ -78,23 +78,27 @@ echo -e "\t\x1b[31mDEBUG\t\t= \x1b[1m${DEBUG}\x1b[0m\n"
 
 
 # ##################################################################################################################################
+# FUNCTIONS
+# ##################################################################################################################################
+run_or_print () {
+    if [ "$DEBUG" = true ]; then
+        echo -e "\t\t\t\t\x1b[33m$1\x1b[0m"
+    else
+        echo -e "\x1b[33m"
+        $1
+        echo -e "\x1b[0m"
+    fi
+}
+
+# ##################################################################################################################################
 # IMPORT GOLD IMAGE
 # ##################################################################################################################################
 if [ ! -f ${GOLD_IMG} ]; then
     echo "Copying gold image..."
-    CMD_=(\
-        "virsh vol-create-as ${POOL} ${GOLD_IMG_NAME} ${SOURCE_IMG_SIZE} --format ${VM_FORMAT}" \
-        "virsh vol-upload --pool ${POOL} ${GOLD_IMG_NAME} ${SOURCE_IMG}"\
-    )
-
-    for c in "${CMD_[@]}"; do
-        if [ "$DEBUG" = true ]; then
-            echo -e "\t\x1b[33m${c}\x1b[0m"
-        else
-            echo -e "\x1b[33m"
-            ${c}
-            echo -e "\x1b[0m"
-        fi
+    for c in "virsh vol-create-as ${POOL} ${GOLD_IMG_NAME} ${SOURCE_IMG_SIZE} --format ${VM_FORMAT}" \
+             "virsh vol-upload --pool ${POOL} ${GOLD_IMG_NAME} ${SOURCE_IMG}"
+    do
+        run_or_print "$c"
     done
 else
     echo -e "\tUse existing gold qcow image..."
@@ -114,68 +118,35 @@ for h in ${HOST_SEQ[@]}; do
     echo -e "\t\tNode: ${h}"
 
     echo -e "\t\t\tFork image from base..."
-    CMD_="virsh vol-create-as ${POOL} ${HOST_NAME}.${VM_FORMAT} ${SOURCE_IMG_SIZE} --backing-vol ${GOLD_IMG_NAME} --backing-vol-format ${VM_FORMAT} --format ${VM_FORMAT}"
-
-    if [ "$DEBUG" = true ]; then
-        echo -e "\t\t\t\t\x1b[33m$CMD_\x1b[0m"
-    else
-        echo -e "\x1b[33m"
-        $CMD_
-        echo -e "\x1b[0m"
-    fi
+    run_or_print "virsh vol-create-as ${POOL} ${HOST_NAME}.${VM_FORMAT} ${SOURCE_IMG_SIZE} --backing-vol ${GOLD_IMG_NAME} --backing-vol-format ${VM_FORMAT} --format ${VM_FORMAT}"
 
     echo -e "\t\t\tGenerate cloud-init iso..."
-    CMD_=(\
-        "cd ${HOST_NAME}" \
-        "genisoimage -input-charset utf-8 -quiet -output ${ISO_DIR}/${HOST_NAME}-init.iso -volid cidata -joliet -rock user-data meta-data" \
-        "virsh vol-create-as ${POOL} ${HOST_NAME}-init.iso 1M --format raw" \
-        "virsh vol-upload --pool ${POOL} ${HOST_NAME}-init.iso ${ISO_DIR}/${HOST_NAME}-init.iso" \
-        "cd .."\
-    )
-
-    for c in "${CMD_[@]}"; do
-        if [ "$DEBUG" = true ]; then
-            echo -e "\t\t\t\t\x1b[33m${c}\x1b[0m"
-        else
-            echo -e "\x1b[33m"
-            ${c}
-            echo -e "\x1b[0m"
-        fi
+    for c in "cd ${HOST_NAME}" \
+             "genisoimage -input-charset utf-8 -quiet -output ${ISO_DIR}/${HOST_NAME}-init.iso -volid cidata -joliet -rock user-data meta-data" \
+             "virsh vol-create-as ${POOL} ${HOST_NAME}-init.iso 1M --format raw" \
+             "virsh vol-upload --pool ${POOL} ${HOST_NAME}-init.iso ${ISO_DIR}/${HOST_NAME}-init.iso" \
+             "cd .."
+     do
+        run_or_print "$c"
     done
 
     echo -e "\t\t\tCreate addtional storage..."
-    CMD_="virsh vol-create-as ${POOL} ${HOST_NAME}-storage.${VM_FORMAT} ${STORAGE_SIZE} --format ${VM_FORMAT}"
-
-    if [ "$DEBUG" = true ]; then
-        echo -e "\t\t\t\t\x1b[33m${CMD_}\x1b[0m"
-    else
-        echo -e "\x1b[33m"
-        ${CMD_}
-        echo -e "\x1b[0m"
-    fi
+    run_or_print "virsh vol-create-as ${POOL} ${HOST_NAME}-storage.${VM_FORMAT} ${STORAGE_SIZE} --format ${VM_FORMAT}"
 
     echo -e "\t\t\tInstall VM..."
     # ${MAC_NODE_LIST[${h}-1]}
-    CMD_="virt-install \
-             --import \
-             --name ${HOST_NAME} \
-             --os-type=Linux \
-             --os-variant=centos7.0 \
-             --ram=${VM_RAM} \
-             --vcpus=${VM_CPU} \
-             --disk vol=${POOL}/${HOST_NAME}.${VM_FORMAT},bus=virtio \
-             --disk vol=${POOL}/${HOST_NAME}-storage.${VM_FORMAT},bus=virtio \
-             --disk vol=${POOL}/${HOST_NAME}-init.iso,device=cdrom,bus=sata \
-             --network bridge=${NET_DEV},mac=${MAC_LIST[$i]} \
-             --noautoconsole"
-
-    if [ "$DEBUG" = true ]; then
-        echo -e "\t\t\t\t\x1b[33m${CMD_}\x1b[0m"
-    else
-        echo -e "\x1b[33m"
-        ${CMD_}
-        echo -e "\x1b[0m"
-    fi
+    run_or_print "virt-install \
+        --import \
+        --name ${HOST_NAME} \
+        --os-type=Linux \
+        --os-variant=centos7.0 \
+        --ram=${VM_RAM} \
+        --vcpus=${VM_CPU} \
+        --disk vol=${POOL}/${HOST_NAME}.${VM_FORMAT},bus=virtio \
+        --disk vol=${POOL}/${HOST_NAME}-storage.${VM_FORMAT},bus=virtio \
+        --disk vol=${POOL}/${HOST_NAME}-init.iso,device=cdrom,bus=sata \
+        --network bridge=${NET_DEV},mac=${MAC_LIST[$i]} \
+        --noautoconsole"
 
     # SUNDRY:
     echo ""
