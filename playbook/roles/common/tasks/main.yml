@@ -1,0 +1,6 @@
+---
+- name: OS upgrade
+  command: runcon -r system_r -t install_t atomic upgrade
+  notify:
+    - Restart server
+    - Wait for server to restart
