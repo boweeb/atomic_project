@@ -2,7 +2,7 @@
 
 # Generate an atomic cluster.
 #
-# ORIG_IMG = qcow2 image (downloaded from http://www.projectatomic.io/download) and in pwd.
+# SOURCE_IMG = qcow2 image (downloaded from http://www.projectatomic.io/download) and in pwd.
 # NODES is not confined to '4', changing it really does work.
 # Naming Scheme: the (single) master host is <prefix>-master. Nodes are <prefix><two-digit index #>
 # The cloud-init files for master are in pwd, not is pwd/master.
@@ -19,20 +19,31 @@
 #    *) [start stop rm]_cluster.sh scripts
 
 
-# ORIG_IMG="${PWD}/CentOS-7-x86_64-AtomicHost.qcow2"
-ORIG_IMG="${PWD}/CentOS-Atomic-Host-7.1.2-GenericCloud.qcow2"
-ORIG_IMG_SIZE_NUM=`qemu-img info ${ORIG_IMG} --output json | python2 -c 'import sys, json; print(json.load(sys.stdin)["virtual-size"] / (1024**3))'`
-ORIG_IMG_SIZE="${ORIG_IMG_SIZE_NUM}G"
-QEMU_IMG_DIR="/var/lib/libvirt/images"
+# ##################################################################################################################################
+# VARS
+# ##################################################################################################################################
+# MANUAL SETTINGS:
 HOST_PREFIX="atomic"
 NODES=5
-ISO_DIR="${PWD}/iso"
-FULL_PREFIX="${QEMU_IMG_DIR}/${HOST_PREFIX}"
-GOLD_IMG="${FULL_PREFIX}-gold.qcow2"
-GOLD_IMG_NAME="${HOST_PREFIX}-gold.qcow2"
+SOURCE_IMG_NAME="CentOS-Atomic-Host-7.1.2-GenericCloud.qcow2"
 #NET_DEV="wlp8s0"
 NET_DEV="br0"
 STORAGE_SIZE=20
+POOL_DIR="/var/lib/libvirt/images"
+MAC_MASTER="52:54:00:cc:c8:0e"
+MAC_NODE_LIST=("52:54:00:b4:26:71" "52:54:00:a4:e7:8d" "52:54:00:56:d6:69" "52:54:00:2b:61:0c")
+SLEEP_TIME=1
+
+# CALCULATED SETTINGS:
+SOURCE_IMG="${PWD}/${SOURCE_IMG_NAME}"
+SOURCE_IMG_SIZE_NUM=`qemu-img info ${SOURCE_IMG} --output json | python2 -c 'import sys, json; print(json.load(sys.stdin)["virtual-size"] / (1024**3))'`
+SOURCE_IMG_SIZE="${SOURCE_IMG_SIZE_NUM}G"
+
+ISO_DIR="${PWD}/iso"
+FULL_PREFIX="${POOL_DIR}/${HOST_PREFIX}"
+GOLD_IMG="${FULL_PREFIX}-gold.qcow2"
+GOLD_IMG_NAME="${HOST_PREFIX}-gold.qcow2"
+
 HOST_SEQ[0]="master"
 HOST_SEQ_NODES=$(seq -f "%02g" 1 ${NODES})
 i=1
@@ -41,34 +52,39 @@ for n in $HOST_SEQ_NODES; do
     let i=i+1
 done
 for x in ${HOST_SEQ[@]}; do echo -e "$x"; done
+
 DEBUG=true
 
-MAC_MASTER="52:54:00:cc:c8:0e"
-MAC_NODE_LIST=("52:54:00:b4:26:71" "52:54:00:a4:e7:8d" "52:54:00:56:d6:69" "52:54:00:2b:61:0c")
-
+# ECHO SETTINGS:
 echo -e "Vars:"
-echo -e "\tORIG_IMG\t= ${ORIG_IMG}"
-echo -e "\tORIG_IMG_SIZE\t= ${ORIG_IMG_SIZE}"
-echo -e "\tQEMU_IMG_DIR\t= ${QEMU_IMG_DIR}"
+echo -e "\tSOURCE_IMG\t= ${SOURCE_IMG}"
+echo -e "\tSOURCE_IMG_SIZE\t= ${SOURCE_IMG_SIZE}"
+echo -e "\tPOOL_DIR\t= ${POOL_DIR}"
 echo -e "\tHOST_PREFIX\t= ${HOST_PREFIX}"
 echo -e "\tNODES\t\t= ${NODES}"
 echo -e "\t\x1b[31mDEBUG\t\t= \x1b[1m${DEBUG}\x1b[0m\n"
 
+
+# ##################################################################################################################################
+# IMPORT GOLD IMAGE
+# ##################################################################################################################################
 if [ ! -f ${GOLD_IMG} ]; then
     echo "Copying gold image..."
     if [ "$DEBUG" = true ]; then
-        echo -e "\t\x1b[33mvirsh vol-create-as default ${GOLD_IMG_NAME} ${ORIG_IMG_SIZE} --format qcow2\x1b[0m"
-        echo -e "\t\x1b[33mvirsh vol-upload --pool default ${GOLD_IMG_NAME} ${ORIG_IMG}\x1b[0m"
+        echo -e "\t\x1b[33mvirsh vol-create-as default ${GOLD_IMG_NAME} ${SOURCE_IMG_SIZE} --format qcow2\x1b[0m"
+        echo -e "\t\x1b[33mvirsh vol-upload --pool default ${GOLD_IMG_NAME} ${SOURCE_IMG}\x1b[0m"
     else
         echo -e "\x1b[33m"
-        virsh vol-create-as default ${GOLD_IMG_NAME} ${ORIG_IMG_SIZE} --format qcow2
-        virsh vol-upload --pool default ${GOLD_IMG_NAME} ${ORIG_IMG}
+        virsh vol-create-as default ${GOLD_IMG_NAME} ${SOURCE_IMG_SIZE} --format qcow2
+        virsh vol-upload --pool default ${GOLD_IMG_NAME} ${SOURCE_IMG}
         echo -e "\x1b[0m"
     fi
 else
     echo -e "\tUse existing gold qcow image..."
 fi
-
+# ----------------------------------------------------------------------------------------------------------------------------------
+# Deprecating below
+# ----------------------------------------------------------------------------------------------------------------------------------
 echo -e "Creating machines..."
 
 echo -e "\tMaster:"
@@ -76,11 +92,11 @@ echo -e "\t\tFork image from base..."
 
 if [ "$DEBUG" = true ]; then
     #~ echo -e "\t\t\t\x1b[33mqemu-img create -f qcow2 -o backing_file=${GOLD_IMG} ${FULL_PREFIX}-master.qcow2\x1b[0m"
-    echo -e "\t\t\t\x1b[33mvirsh vol-create-as default ${HOST_PREFIX}-master.qcow2 ${ORIG_IMG_SIZE} --backing-vol ${GOLD_IMG_NAME} --backing-vol-format qcow2 --format qcow2\x1b[0m"
+    echo -e "\t\t\t\x1b[33mvirsh vol-create-as default ${HOST_PREFIX}-master.qcow2 ${SOURCE_IMG_SIZE} --backing-vol ${GOLD_IMG_NAME} --backing-vol-format qcow2 --format qcow2\x1b[0m"
 else
     echo -e "\x1b[33m"
     #~ qemu-img create -f qcow2 -o backing_file=${GOLD_IMG} ${FULL_PREFIX}-master.qcow2
-    virsh vol-create-as default ${HOST_PREFIX}-master.qcow2 ${ORIG_IMG_SIZE} --backing-vol ${GOLD_IMG_NAME} --backing-vol-format qcow2 --format qcow2
+    virsh vol-create-as default ${HOST_PREFIX}-master.qcow2 ${SOURCE_IMG_SIZE} --backing-vol ${GOLD_IMG_NAME} --backing-vol-format qcow2 --format qcow2
     echo -e "\x1b[0m"
 fi
 
@@ -142,12 +158,16 @@ else
     echo -e "\x1b[0m\n"
 fi
 
+
+# ##################################################################################################################################
+# CONFIGURE AND LAUNCH VM'S
+# ##################################################################################################################################
 echo -e "\tCluster:"
 for i in ${HOST_SEQ[@]}; do
     echo -e "\t\tNode: ${i}"
 
     echo -e "\t\t\tFork image from base..."
-    CMD_="virsh vol-create-as default ${HOST_PREFIX}-master.qcow2 ${ORIG_IMG_SIZE} --backing-vol ${GOLD_IMG_NAME} --backing-vol-format qcow2 --format qcow2"
+    CMD_="virsh vol-create-as default ${HOST_PREFIX}-master.qcow2 ${SOURCE_IMG_SIZE} --backing-vol ${GOLD_IMG_NAME} --backing-vol-format qcow2 --format qcow2"
 
     if [ "$DEBUG" = true ]; then
         echo -e "\t\t\t\t\x1b[33m$CMD_\x1b[0m"
@@ -198,15 +218,11 @@ for i in ${HOST_SEQ[@]}; do
             --noautoconsole
         echo -e "\x1b[0m"
     fi
-    # sleep 3
+    sleep ${SLEEP_TIME}
 done
 
-# virt-viewer --connect qemu:///system atomic-master &
 
-# for i in $(seq -f "%02g" 1 ${NODES})
-# do
-#     virt-viewer --connect qemu:///system atomic-${i} &
-# done
-
+# ##################################################################################################################################
+# DONE
+# ##################################################################################################################################
 echo -e "Done"
-# END
