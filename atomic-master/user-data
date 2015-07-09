@@ -1,0 +1,12 @@
+#cloud-config
+# vim: syntax=yaml
+
+hostname: atomic-master
+fqdn: atomic-master.gcdomain.local
+password: atomic
+#ssh_pwauth: True
+chpasswd: { expire: False }
+
+ssh_authorized_keys:
+  - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDQf4x1DGZeZ6RDqy5kN+uasyquEYWMS4DuU8d/Da9o0BS3DmYrPXqhTuV1gVAJTCH+Qy/76lHeHkjo7rZeeGoiHH4oV5QZ7DcjzGxfVdopwBu9l0CxAZa/f6zie+h09jCyf59+3Rm72RKmJov+NS0sZqG+YwFllVwlOQLBarFs63V/zMb1zehXZFEPhMVlz36VJoXAzWUA0wV5OzI9NU4qHMeYUA9gBIsrnlX4Zix50Hy5/zWLzYu3PbInTQhsTha0RH+V+zbBw6ioEaFA22xDSHVG6bGlKwKslNfU9rzfg1uz94Z33sMiOB1EX54wjKl62FTHCC2DRvfGdRv8wJEl jesse.butcher@gardencitygroup.com
+
