@@ -23,11 +23,11 @@
 # VARS
 # ##################################################################################################################################
 # DEBUG: (Exec or echo commands)
-DEBUG=true
+DEBUG=false
 
 # MANUAL SETTINGS:
 HOST_PREFIX="atomic"
-NODES=1
+NODES=4
 SOURCE_IMG_NAME="CentOS-Atomic-Host-7.1.2-GenericCloud.qcow2"
 #NET_DEV="wlp8s0"
 NET_DEV="br0"
@@ -38,8 +38,8 @@ POOL="default"
 POOL_DIR="/var/lib/libvirt/images"
 VM_FORMAT="qcow2"
 MAC_MASTER="52:54:00:cc:c8:0e"
-MAC_NODE_LIST=("52:54:00:b4:26:71" "52:54:00:a4:e7:8d" "52:54:00:56:d6:69" "52:54:00:2b:61:0c")
-SLEEP_TIME=1
+MAC_NODES=("52:54:00:b4:26:71" "52:54:00:a4:e7:8d" "52:54:00:56:d6:69" "52:54:00:2b:61:0c")
+SLEEP_TIME=3
 
 # CALCULATED SETTINGS:
 SOURCE_IMG="${PWD}/${SOURCE_IMG_NAME}"
@@ -51,11 +51,19 @@ FULL_PREFIX="${POOL_DIR}/${HOST_PREFIX}"
 GOLD_IMG="${FULL_PREFIX}-gold.${VM_FORMAT}"
 GOLD_IMG_NAME="${HOST_PREFIX}-gold.${VM_FORMAT}"
 
+# CONFIGURE ARRAYS: (so master is first)
 HOST_SEQ[0]="master"
 HOST_SEQ_NODES=$(seq -f "%02g" 1 ${NODES})
 i=1
 for n in $HOST_SEQ_NODES; do
     HOST_SEQ[$i]=$n
+    let i=i+1
+done
+
+MAC_LIST[0]=$MAC_MASTER
+i=1
+for n in "${MAC_NODES[@]}"; do
+    MAC_LIST[$i]=$n
     let i=i+1
 done
 
@@ -100,9 +108,10 @@ echo ""
 echo -e "Creating machines..."
 
 echo -e "\tCluster:"
-for i in ${HOST_SEQ[@]}; do
-    HOST_NAME=${HOST_PREFIX}-${i}
-    echo -e "\t\tNode: ${i}"
+i=0
+for h in ${HOST_SEQ[@]}; do
+    HOST_NAME=${HOST_PREFIX}-${h}
+    echo -e "\t\tNode: ${h}"
 
     echo -e "\t\t\tFork image from base..."
     CMD_="virsh vol-create-as ${POOL} ${HOST_NAME}.${VM_FORMAT} ${SOURCE_IMG_SIZE} --backing-vol ${GOLD_IMG_NAME} --backing-vol-format ${VM_FORMAT} --format ${VM_FORMAT}"
@@ -146,19 +155,18 @@ for i in ${HOST_SEQ[@]}; do
     fi
 
     echo -e "\t\t\tInstall VM..."
-    # ${MAC_NODE_LIST[${i}-1]}
+    # ${MAC_NODE_LIST[${h}-1]}
     CMD_="virt-install \
              --import \
              --name ${HOST_NAME} \
-             --description \"Atomic Cluster\" \
              --os-type=Linux \
-             --os-variant=centos7.1 \
+             --os-variant=centos7.0 \
              --ram=${VM_RAM} \
              --vcpus=${VM_CPU} \
              --disk vol=${POOL}/${HOST_NAME}.${VM_FORMAT},bus=virtio \
              --disk vol=${POOL}/${HOST_NAME}-storage.${VM_FORMAT},bus=virtio \
              --disk vol=${POOL}/${HOST_NAME}-init.iso,device=cdrom,bus=sata \
-             --network bridge=${NET_DEV},mac=${MAC_MASTER} \
+             --network bridge=${NET_DEV},mac=${MAC_LIST[$i]} \
              --noautoconsole"
 
     if [ "$DEBUG" = true ]; then
@@ -169,8 +177,10 @@ for i in ${HOST_SEQ[@]}; do
         echo -e "\x1b[0m"
     fi
 
+    # SUNDRY:
     echo ""
     sleep ${SLEEP_TIME}
+    let i=i+1
 
 done
 
