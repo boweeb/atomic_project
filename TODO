@@ -1,0 +1,7 @@
+* Create and use libvirt pool instead of relying on existing "default".
+* Dyncamilly manage the cloud-init directories and content.
+* Sanity check.
+* Discover and use VM IP's.
+* Display summary info eg. pool contents, running VM's, IP's, etc.
+* Manage /etc/host and /etc/ansible/hosts entries.
+* Rewrite better doc-block and explain dependencies.
