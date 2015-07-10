@@ -9,3 +9,12 @@
   file:
     path: /var/roothome/.local-registry-context.changed
     state: touch
+
+- name: Reload systemctl
+  command: /usr/bin/systemctl daemon-reload
+
+- name: Enable local-registry service
+  service:
+    name: local-registry
+    enabled: yes
+    state: restarted

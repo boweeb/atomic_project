@@ -21,3 +21,45 @@
     recurse: yes
     state: directory
   notify: Changed local registry context
+
+- name: Create local-registry systemd service
+  template:
+    src: local-registry.service
+    dest: "/etc/systemd/system/local-registry.service"
+  notify:
+    - Reload systemctl
+    - Enable local-registry service
+
+- name: Have etcd listen on all IP addresses
+  lineinfile:
+    dest: /etc/etcd/etcd.conf
+    regexp: '^ETCD_LISTEN_CLIENT_URLS='
+    line: "ETCD_LISTEN_CLIENT_URLS=\"http://0.0.0.0:4001\""
+    state: present
+
+- name: Kubernetes master config
+  lineinfile:
+    dest: /etc/kubernetes/config
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+    state: present
+  with_items:
+    - { regexp: '^#*KUBE_ETCD_SERVERS=', line: 'KUBE_ETCD_SERVERS="--etcd_servers=http://atomic-master.{{ ansible_domain }}:4001"' }
+
+- name: Kubernetes master apiserver config
+  lineinfile:
+    dest: /etc/kubernetes/apiserver
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+    state: present
+  with_items:
+    - { regexp: '^#*KUBE_API_ADDRESS=', line: 'KUBE_API_ADDRESS="--address=0.0.0.0"' }
+
+# Potential answer here: http://stackoverflow.com/questions/24798382/how-to-assign-an-array-to-a-variable-in-an-ansible-playbook/24829795#24829795
+- name: Kubernetes master controller-manager config
+  lineinfile:
+    dest: /etc/kubernetes/controller-manager
+    regexp: '^#*KUBELET_ADDRESSES='
+    line: 'KUBELET_ADDRESSES="--machines={{ hostvars[item].ansible_fqdn }}"'
+    state: present
+  with_items: groups['atomic_nodes']

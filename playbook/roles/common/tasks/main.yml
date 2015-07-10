@@ -15,10 +15,39 @@
 #     - Wait for server to restart
 
 - name: Disable IPv6
-  lineinfile: dest=/etc/sysctl.conf regexp="{{ item.regexp }}" line="{{ item.line }}" state=present
+  lineinfile:
+    dest: /etc/sysctl.conf
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+    state: present
   with_items:
     - { regexp: '^net\.ipv6\.conf\.eth0\.disable_ipv6\s+=', line: 'net.ipv6.conf.eth0.disable_ipv6 = 1' }
     - { regexp: '^net\.ipv6\.conf\.all\.disable_ipv6\s+=', line: 'net.ipv6.conf.all.disable_ipv6 = 1' }
     - { regexp: '^net\.ipv6\.conf\.default\.disable_ipv6\s+=', line: 'net.ipv6.conf.default.disable_ipv6 = 1' }
     - { regexp: '^net\.ipv6\.conf\.lo\.disable_ipv6\s+=', line: 'net.ipv6.conf.lo.disable_ipv6 = 1' }
   notify: Refresh sysctl
+
+- name: Build hosts file
+  lineinfile:
+    dest: /etc/hosts
+    regexp: '.*{{ item }}$'
+    line: "{{ hostvars[item].ansible_default_ipv4.address }}\t{{ hostvars[item].ansible_fqdn }}\t{{item}}"
+    state: present
+  when: hostvars[item].ansible_default_ipv4.address is defined
+  with_items: groups['all']
+
+- name: Temporary dns fix in hosts file
+  lineinfile:
+    dest: /etc/hosts
+    regexp: 'atomic-03'
+    line: "10.62.22.51\tatomic-03.{{ ansible_domain }}\tatomic-03"
+    state: present
+
+- name: Kubernetes common config
+  lineinfile:
+    dest: /etc/kubernetes/config
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+    state: present
+  with_items:
+    - { regexp: '^#*KUBE_MASTER=', line: 'KUBE_MASTER="--master=http://atomic-master.{{ ansible_domain }}:8080"' }
