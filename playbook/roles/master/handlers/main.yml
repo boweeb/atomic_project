@@ -1,0 +1,11 @@
+---
+
+- name: Created local registry
+  file:
+    path: /var/roothome/.local-registry.created
+    state: touch
+
+- name: Changed local registry context
+  file:
+    path: /var/roothome/.local-registry-context.changed
+    state: touch

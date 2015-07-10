@@ -3,21 +3,24 @@
 
 - name: apply common configuration to all nodes
   hosts: atomic_all
-  remote_user: root
+  remote_user: centos
+  sudo: yes
 
   roles:
     - common
 
 - name: configure the kubernetes master
   hosts: atomic-master
-  remote_user: root
+  remote_user: centos
+  sudo: yes
 
   roles:
     - master
 
 - name: configure the kubernetes nodes
   hosts: atomic_nodes
-  remote_user: root
+  remote_user: centos
+  sudo: yes
 
   roles:
     - node

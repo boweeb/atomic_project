@@ -2,16 +2,28 @@
 # See https://support.ansible.com/hc/en-us/articles/201958037-Reboot-a-server-and-wait-for-it-to-come-back
 
 - name: Reboot server
-  command: systemctl reboot
+  raw: "/sbin/shutdown -r 1"
   async: 0
   poll: 0
   ignore_errors: true
 
+# - name: Reboot server
+#   raw: /sbin/shutdown -r 1
+#   changed_when: True
+
 - name: Wait for server to restart
   local_action:
     module: wait_for
-      host={{ ansible_hostname }}
-      port=22
-      delay=1
-      timeout=120
-    sudo: false
+            host={{ inventory_hostname }}
+            port=22
+            delay=15
+            timeout=300
+            connect_timeout=15
+            state=started
+  sudo: false
+
+- name: Run storage setup
+  command: docker-storage-setup
+
+- name: Refresh sysctl
+  command: sysctl -p

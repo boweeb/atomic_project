@@ -1,6 +1,24 @@
 ---
-- name: OS upgrade
-  command: runcon -r system_r -t install_t atomic upgrade
+- name: Add storage disk config
+  template:
+    src: docker-storage-setup
+    dest: /etc/sysconfig/docker-storage-setup
+    # owner: root
+    # group: root
   notify:
-    - Restart server
-    - Wait for server to restart
+    - Run storage setup
+
+# - name: OS upgrade
+#   command: atomic host upgrade
+#   notify:
+#     - Reboot server
+#     - Wait for server to restart
+
+- name: Disable IPv6
+  lineinfile: dest=/etc/sysctl.conf regexp="{{ item.regexp }}" line="{{ item.line }}" state=present
+  with_items:
+    - { regexp: '^net\.ipv6\.conf\.eth0\.disable_ipv6\s+=', line: 'net.ipv6.conf.eth0.disable_ipv6 = 1' }
+    - { regexp: '^net\.ipv6\.conf\.all\.disable_ipv6\s+=', line: 'net.ipv6.conf.all.disable_ipv6 = 1' }
+    - { regexp: '^net\.ipv6\.conf\.default\.disable_ipv6\s+=', line: 'net.ipv6.conf.default.disable_ipv6 = 1' }
+    - { regexp: '^net\.ipv6\.conf\.lo\.disable_ipv6\s+=', line: 'net.ipv6.conf.lo.disable_ipv6 = 1' }
+  notify: Refresh sysctl
