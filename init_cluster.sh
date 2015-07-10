@@ -23,11 +23,11 @@
 # VARS
 # ##################################################################################################################################
 # DEBUG: (Exec or echo commands)
-DEBUG=true
+DEBUG=false
 
 # MANUAL SETTINGS:
 HOST_PREFIX="atomic"
-NODES=4
+NODES=0
 SOURCE_IMG_NAME="CentOS-Atomic-Host-7.1.2-GenericCloud.qcow2"
 #NET_DEV="wlp8s0"
 NET_DEV="br0"
@@ -39,7 +39,7 @@ POOL_DIR="/var/lib/libvirt/images"
 VM_FORMAT="qcow2"
 MAC_MASTER="52:54:00:cc:c8:0e"
 MAC_NODES=("52:54:00:b4:26:71" "52:54:00:a4:e7:8d" "52:54:00:56:d6:69" "52:54:00:2b:61:0c")
-SLEEP_TIME=0.5
+SLEEP_TIME=3
 
 # CALCULATED SETTINGS:
 SOURCE_IMG="${PWD}/${SOURCE_IMG_NAME}"

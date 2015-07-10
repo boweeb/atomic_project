@@ -1,3 +1,3 @@
 #!/bin/bash
 
-sudo ./stop_cluster.sh && sleep 3 && sudo ./rm_cluster.sh && sleep 3 && sudo ./init_cluster.sh
+sudo ./stop_cluster.sh && sleep 3 && sudo ./rm_cluster.sh && sleep 3 && clean_known_hosts.sh && sudo ./init_cluster.sh

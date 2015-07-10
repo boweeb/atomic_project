@@ -4,4 +4,6 @@
 * Discover and use VM IP's.
 * Display summary info eg. pool contents, running VM's, IP's, etc.
 * Manage /etc/host and /etc/ansible/hosts entries.
+* Manage ~/.ssh/known_hosts both add and remove
 * Rewrite better doc-block and explain dependencies.
+* Add ability to generate a specific host eg. atomic-03

@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# Be SURE that NODES = 0 in init_cluster.sh!!!
+
+H="atomic-master"
+S=3
+
+sudo virsh shutdown $H && sleep $S && sudo virsh undefine $H --remove-all-storage && sleep $S && sudo ./init_cluster.sh && sed -i '/atomic-master/d' ~/.ssh/known_hosts
